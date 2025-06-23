@@ -27,7 +27,9 @@ contract SubastaFlash {
     event SubastaFinalizada(address ganador, uint monto);
     event FondosRetirados(address indexed to, uint amount);
     event ReembolsoParcial(address indexed oferente, uint monto);
+    
 
+    //Inicializa el contrato con una duración dada.
     constructor(uint _duracion) {
         owner = msg.sender;
         inicio = block.timestamp;
@@ -44,6 +46,7 @@ contract SubastaFlash {
         _;
     }
 
+    //Verifica que se haya enviado ETH, suma el nuevo depósito al total del usuario, verifica que la oferta supere en al menos 5% a la mejor actual, registra la nueva oferta en historialOfertas, extiende el tiempo si quedan menos de 10 minutos.
     function ofertar() external payable subastaActiva {
         require(msg.value > 0, "Debes enviar ETH");
 
@@ -69,6 +72,8 @@ contract SubastaFlash {
         emit NuevaOferta(msg.sender, total);
     }
 
+
+    //finaliza la subasta solo si es el propietario
     function finalizar() external soloOwner {
         require(!finalizada, "Ya finalizo");
         require(block.timestamp >= inicio + duracion, "Aun no termina");
@@ -77,6 +82,7 @@ contract SubastaFlash {
         emit SubastaFinalizada(mejorOferente, mejorOferta);
     }
 
+    //Solo válido si la subasta terminó, los no ganadores pueden retirar su depósito menos una comisión del 2%.
     function retirar() external {
         require(finalizada, "Subasta no finalizada");
         require(msg.sender != mejorOferente, "Ganador no puede retirar");
@@ -91,6 +97,7 @@ contract SubastaFlash {
         payable(msg.sender).transfer(reembolso);
     }
 
+    //Permite al propietario retirar los fondos acumulados del ganador.
     function retirarFondos() external soloOwner {
         require(finalizada, "Subasta no finalizada");
         require(address(this).balance > 0, "Sin balance disponible");
@@ -102,6 +109,7 @@ contract SubastaFlash {
         emit FondosRetirados(owner, monto);
     }
 
+    //Calcula cuántos segundos faltan para que la subasta termine.
     function tiempoRestante() external view returns (uint) {
         if (block.timestamp >= inicio + duracion || finalizada) {
             return 0;
@@ -110,18 +118,22 @@ contract SubastaFlash {
         }
     }
 
+    //muestra el balance del contrato
     function verBalance() external view returns (uint) {
         return address(this).balance;
     }
 
+    //muestra el ganador de la subasta
     function mostrarGanador() external view returns (address, uint) {
         return (mejorOferente, mejorOferta);
     }
 
+    //muestra todo el historial de ofertas por usuario
     function mostrarOfertas(address _oferente) external view returns (Oferta[] memory) {
         return historialOfertas[_oferente];
     }
 
+    //Permite al usuario recuperar su oferta anterior, útil si hizo múltiples ofertas y no quiere dejar todo su capital ahí.
     function reembolsoParcial() external subastaActiva {
         Oferta[] storage ofertas = historialOfertas[msg.sender];
         require(ofertas.length >= 2, "No hay ofertas anteriores");
@@ -136,6 +148,7 @@ contract SubastaFlash {
         emit ReembolsoParcial(msg.sender, montoReembolsable);
     }
 
+    //Obtener lista de oferentes
     function obtenerOferentes() external view returns (address[] memory) {
         return oferentes;
     }
